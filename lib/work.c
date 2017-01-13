@@ -70,8 +70,8 @@ struct wq_info {
 
 static int efd;
 static LIST_HEAD(wq_info_list);
-static size_t nr_nodes = 1;
-static size_t (*wq_get_nr_nodes)(void);
+static size_t nr_cores = 1;
+static size_t (*wq_get_nr_cores)(void);
 
 static void *worker_routine(void *arg);
 
@@ -206,11 +206,8 @@ static inline uint64_t wq_get_roof(struct wq_info *wi)
 	case WQ_ORDERED:
 		break;
 	case WQ_DYNAMIC:
-		/* FIXME: 2 * nr_nodes threads. No rationale yet. */
-		nr = nr_nodes * 2;
-		break;
-	case WQ_UNLIMITED:
-		nr = SIZE_MAX;
+		/* 2 * nr_cores threads. */
+		nr = nr_cores * 2;
 		break;
 	case WQ_FIXED:
 		nr = wi->nr_threads;
@@ -297,8 +294,8 @@ static void worker_thread_request_done(int fd, int events, void *data)
 	struct work *work;
 	LIST_HEAD(list);
 
-	if (wq_get_nr_nodes)
-		nr_nodes = wq_get_nr_nodes();
+	if (wq_get_nr_cores)
+		nr_cores = wq_get_nr_cores();
 
 	eventfd_xread(fd);
 
@@ -368,14 +365,14 @@ retest:
 	pthread_exit(NULL);
 }
 
-int init_work_queue(size_t (*get_nr_nodes)(void))
+int init_work_queue(size_t (*get_nr_cores)(void))
 {
 	int ret;
 
-	wq_get_nr_nodes = get_nr_nodes;
+	wq_get_nr_cores = get_nr_cores;
 
-	if (wq_get_nr_nodes)
-		nr_nodes = wq_get_nr_nodes();
+	if (wq_get_nr_cores)
+		nr_cores = wq_get_nr_cores();
 
 	efd = eventfd(0, EFD_NONBLOCK);
 	if (efd < 0) {
@@ -393,17 +390,6 @@ int init_work_queue(size_t (*get_nr_nodes)(void))
 	return 0;
 }
 
-/*
- * Allowing unlimited threads to be created is necessary to solve the following
- * problems:
- *
- *  1. timeout of IO requests from guests. With on-demand short threads, we
- *     guarantee that there is always one thread available to execute the
- *     request as soon as possible.
- *  2. sheep halt for corner case that all gateway and io threads are executing
- *     local requests that ask for creation of another thread to execute the
- *     requests and sleep-wait for responses.
- */
 struct work_queue *create_work_queue(const char *name,
 				     enum wq_thread_control tc)
 {

@@ -24,8 +24,7 @@ struct work_queue {
 
 enum wq_thread_control {
 	WQ_ORDERED, /* Only 1 thread created for work queue */
-	WQ_DYNAMIC, /* # of threads proportional to nr_nodes created */
-	WQ_UNLIMITED, /* Unlimited # of threads created */
+	WQ_DYNAMIC, /* The maximum number of threads is the number of cores */
 	WQ_FIXED, /* Fixed # of threads created */
 };
 
@@ -56,11 +55,11 @@ static inline bool is_worker_thread(void)
 })
 
 /*
- * 'get_nr_nodes' is the function to get the current number of nodes and used
+ * 'get_nr_cores' is the function to get the number of cores and used
  * for dynamic work queues.  'create_cb' will be called when worker threads are
  * created and 'destroy_cb' will be called when worker threads are destroyed.
  */
-int init_work_queue(size_t (*get_nr_nodes)(void));
+int init_work_queue(size_t (*get_nr_cores)(void));
 struct work_queue *create_work_queue(const char *name, enum wq_thread_control);
 struct work_queue *create_ordered_work_queue(const char *name);
 struct work_queue *create_fixed_work_queue(const char *name, int nr_threads);
