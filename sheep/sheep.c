@@ -478,15 +478,13 @@ static struct option_parser recovery_parsers[] = {
 
 static size_t get_nr_cores(void)
 {
-	size_t cpu_core_num;
-
-	cpu_core_num = sysconf(_SC_NPROCESSORS_CONF);
-	if (cpu_core_num == -1) {
-		sd_err("faile to get the number of cores, errno=%d", errno);
+	const long cpu_core_num = sysconf(_SC_NPROCESSORS_CONF);
+	if (cpu_core_num == -1L) {
+		sd_err("failed to get the number of cores: %m");
 		return 0;
 	}
 
-	return cpu_core_num;
+	return (size_t)cpu_core_num;
 }
 
 static int create_work_queues(void)
